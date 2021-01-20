@@ -9,6 +9,9 @@
 #include <torch/csrc/jit/runtime/graph_executor.h>
 #include <torch/csrc/jit/runtime/interpreter.h>
 
+#include <torch/csrc/jit/codegen/cuda/interface.h>
+#include <torch/csrc/jit/ir/ir.h>
+
 namespace torch {
 namespace jit {
 
@@ -200,7 +203,7 @@ void ProfilingRecord::insertShapeProfile(Node* n, size_t offset) {
 }
 
 bool needsProfiledInputs(Node* n) {
-  if (tensorexpr::isSupported(n)) {
+  if (tensorexpr::isSupported(n) || fuser::cuda::canFuseNode(n)) {
     return true;
   }
 
@@ -226,12 +229,12 @@ bool needsProfiledInputs(Node* n) {
     case aten::mm:
       return true;
     default:
-      return ProfileRegistry::getRegistry()->shouldProfileNode(n);
+      return false;
   }
 }
 
 bool needsProfiledOutput(Node* n) {
-  if (tensorexpr::isSupported(n)) {
+  if (tensorexpr::isSupported(n) || fuser::cuda::canFuseNode(n)) {
     return true;
   }
 
@@ -240,7 +243,7 @@ bool needsProfiledOutput(Node* n) {
     case prim::AutogradZero:
       return true;
     default:
-      return ProfileRegistry::getRegistry()->shouldProfileNode(n);
+      return false;
   }
 }
 
