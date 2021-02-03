@@ -6313,28 +6313,47 @@
 - func: min.other(Tensor self, Tensor other) -> Tensor
   variants: method, function
 
-- func: quantile.scalar_out(Tensor self, float q, int? dim=None, bool keepdim=False, *, Tensor(a!) out) -> Tensor(a!)
-  use_c10_dispatcher: hacky_wrapper_for_legacy_signatures
+# The following (nan)quantile signatures are deprecated.
+- func: quantile.deprecated_scalar_out(Tensor self, float q, int? dim=None, bool keepdim=False, *, Tensor(a!) out) -> Tensor(a!)
 
-- func: quantile.scalar(Tensor self, float q, int? dim=None, bool keepdim=False) -> Tensor
+- func: quantile.deprecated_scalar(Tensor self, float q, int? dim=None, bool keepdim=False) -> Tensor
   variants: method, function
 
-- func: quantile.out(Tensor self, Tensor q, int? dim=None, bool keepdim=False, *, Tensor(a!) out) -> Tensor(a!)
-  use_c10_dispatcher: hacky_wrapper_for_legacy_signatures
+- func: quantile.deprecated_out(Tensor self, Tensor q, int? dim=None, bool keepdim=False, *, Tensor(a!) out) -> Tensor(a!)
 
-- func: quantile(Tensor self, Tensor q, int? dim=None, bool keepdim=False) -> Tensor
+- func: quantile.deprecated(Tensor self, Tensor q, int? dim=None, bool keepdim=False) -> Tensor
   variants: method, function
 
-- func: nanquantile.scalar_out(Tensor self, float q, int? dim=None, bool keepdim=False, *, Tensor(a!) out) -> Tensor(a!)
-  use_c10_dispatcher: hacky_wrapper_for_legacy_signatures
+- func: nanquantile.deprecated_scalar_out(Tensor self, float q, int? dim=None, bool keepdim=False, *, Tensor(a!) out) -> Tensor(a!)
 
-- func: nanquantile.scalar(Tensor self, float q, int? dim=None, bool keepdim=False) -> Tensor
+- func: nanquantile.deprecated_scalar(Tensor self, float q, int? dim=None, bool keepdim=False) -> Tensor
   variants: method, function
 
-- func: nanquantile.out(Tensor self, Tensor q, int? dim=None, bool keepdim=False, *, Tensor(a!) out) -> Tensor(a!)
-  use_c10_dispatcher: hacky_wrapper_for_legacy_signatures
+- func: nanquantile.deprecated_out(Tensor self, Tensor q, int? dim=None, bool keepdim=False, *, Tensor(a!) out) -> Tensor(a!)
 
-- func: nanquantile(Tensor self, Tensor q, int? dim=None, bool keepdim=False) -> Tensor
+- func: nanquantile.deprecated(Tensor self, Tensor q, int? dim=None, bool keepdim=False) -> Tensor
+  variants: method, function
+
+# The following are the new (nan)quantile signatures. dim and keepdim were moved to kwarg only and the interpolation kwarg parameter
+# was added. interpolation does not have a default value for now to prevent ambiguity with the old deprecated signatures.
+- func: quantile.scalar_out(Tensor self, float q, *, str interpolation, int? dim=None, bool keepdim=False, Tensor(a!) out) -> Tensor(a!)
+
+- func: quantile.scalar(Tensor self, float q, *, str interpolation, int? dim=None, bool keepdim=False) -> Tensor
+  variants: method, function
+
+- func: quantile.out(Tensor self, Tensor q, *, str interpolation, int? dim=None, bool keepdim=False, Tensor(a!) out) -> Tensor(a!)
+
+- func: quantile(Tensor self, Tensor q, *, str interpolation, int? dim=None, bool keepdim=False) -> Tensor
+  variants: method, function
+
+- func: nanquantile.scalar_out(Tensor self, float q, *, str interpolation, int? dim=None, bool keepdim=False, Tensor(a!) out) -> Tensor(a!)
+
+- func: nanquantile.scalar(Tensor self, float q, *, str interpolation, int? dim=None, bool keepdim=False) -> Tensor
+  variants: method, function
+
+- func: nanquantile.out(Tensor self, Tensor q, *, str interpolation, int? dim=None, bool keepdim=False, Tensor(a!) out) -> Tensor(a!)
+
+- func: nanquantile(Tensor self, Tensor q, *, str interpolation, int? dim=None, bool keepdim=False) -> Tensor
   variants: method, function
 
 - func: sort.values(Tensor self, int dim=-1, bool descending=False, *, Tensor(a!) values, Tensor(b!) indices) -> (Tensor(a!) values, Tensor(b!) indices)
