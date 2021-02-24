@@ -8,6 +8,7 @@ from typing import Type, Dict, List, Any, Union, Optional, Set
 from .graph import Graph, _is_from_torch, _custom_builtins, PythonCode
 from torch.package import Importer, sys_importer
 import copy
+import itertools
 import sys
 import traceback
 from pathlib import Path
@@ -130,7 +131,6 @@ def _copy_attr(from_module: torch.nn.Module, to_module: torch.nn.Module, target:
     else:
         setattr(to_module, field, orig)
 
-
 # Assign attribute 'from_obj' to the qualified name 'target' on 'to_module
 # This installs empty Modules where none exist yet if they are subpaths of target
 def _assign_attr(from_obj: Any, to_module: torch.nn.Module, target: str):
@@ -247,6 +247,7 @@ class GraphModule(torch.nn.Module):
         corresponds to ``g``
         """
         self._graph = g
+        g.owning_module = self
         self.recompile()
 
     def to_folder(self, folder: Union[str, os.PathLike], module_name : str = "FxModule"):
@@ -308,6 +309,56 @@ class {module_name}(torch.nn.Module):
         if len(blobified_modules) > 0:
             warnings.warn("Was not able to save the following children modules as reprs -"
                           f"saved as pickled files instead: {blobified_modules}")
+
+    def delete_all_unused_submodules(self) -> None:
+        """
+        Deletes all unused submodules from ``self``.
+
+        A Module is considered "used" if any one of the following is
+        true:
+        1. It has children that are used
+        2. Its forward is called directly via a ``call_module`` node
+        3. It has a non-Module attribute that is used from a 
+           ``get_attr`` node
+
+        This method can be called to clean up an ``nn.Module`` without
+        manually calling ``delete_submodule`` on each unused submodule.
+
+        For ``nn.Module`` manipulation methods not specific to
+        GraphModules (e.g ``has_submodule``, ``add_submodule``, and
+        ``delete_submodule``), see the ``nn.Module`` documentation.
+        """
+        used: List[str] = []
+
+        for node in self.graph.nodes:
+
+            if node.op == "call_module" or node.op == "get_attr":
+
+                # A list of strings representing the different parts
+                # of the path. For exmaple, `foo.bar.baz` gives us
+                # ["foo", "bar", "baz"]
+                fullpath = node.target.split(".")
+
+                # If we're looking at multiple parts of a path, join
+                # join them with a dot. Otherwise, return that single
+                # element without doing anything to it.
+                def join_fn(x: str, y: str) -> str:
+                    if y:
+                        return x + "." + y
+                    return x
+
+                # Progressively collect all the names of intermediate
+                # modules. For example, if we have the target 
+                # `foo.bar.baz`, we'll add `foo`, `foo.bar`, and 
+                # `foo.bar.baz` to the list. 
+                for path in itertools.accumulate(fullpath, join_fn):
+                    used.append(path)
+
+        to_delete = [name for name, _ in self.named_modules()
+                     if name not in used]
+
+        for name in to_delete:
+            self.delete_submodule(name)
 
     @property
     def code(self) -> str:
