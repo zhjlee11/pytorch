@@ -358,6 +358,28 @@ def sample_inputs_tensor_split(op_info, device, dtype, requires_grad):
                         args=(torch.tensor([1, 2, 3]),),
                         kwargs=dict(dim=1)),)
 
+def sample_inputs_linalg_matrix_power(op_info, device, dtype, requires_grad):
+    test_sizes = [
+        (1, 1),
+        (S, S),
+        (0, S, S),
+        (S, S, S),
+    ]
+
+    inputs = []
+
+    for size in test_sizes:
+        for n in torch.arange(0, 5):
+            t = make_tensor(size, device, dtype, requires_grad=requires_grad)
+            inputs.append(SampleInput(t, args=(n,)))
+
+    for n in torch.arange(-4, 0):
+        t = random_fullrank_matrix_distinct_singular_value(S, S, device=device, dtype=dtype)
+        t.requires_grad = requires_grad
+        inputs.append(SampleInput(t, args=(n,)))
+
+    return inputs
+
 def sample_inputs_linalg_norm(op_info, device, dtype, requires_grad):
     test_sizes = [
         (S,),
@@ -1811,6 +1833,19 @@ op_db: List[OpInfo] = [
            decorators=[_wrap_maybe_warns("floor_divide is deprecated, and will be removed")],
            supports_autograd=False,
            ),
+    OpInfo('linalg.matrix_power',
+           op=torch.linalg.matrix_power,
+           dtypes=floating_and_complex_types(),
+           test_inplace_grad=False,
+           supports_tensor_out=True,
+           decorators=[skipCUDAIfNoMagma, skipCPUIfNoLapack],
+           sample_inputs_func=sample_inputs_linalg_matrix_power,
+           aten_name='linalg_matrix_power',
+           skips=(
+               # RuntimeError: input->type()->kind() == TypeKind::OptionalTypeINTERNAL ASSERT FAILED
+               SkipInfo('TestCommon', 'test_variant_consistency_jit',
+                        dtypes=[torch.float32]),
+           )),
     OpInfo('linalg.norm',
            op=torch.linalg.norm,
            dtypes=floating_and_complex_types_and(torch.float16, torch.bfloat16),
