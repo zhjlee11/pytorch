@@ -78,6 +78,9 @@ using namespace ::c10::cuda;
 #endif
 } // namespace cuda
 
+bool matchesUtility(const FunctionSchema& schema, at::ArrayRef<const Value*> inputs);
+bool matchesUtility(const FunctionSchema& schema, at::ArrayRef<Value*> inputs);
+
 struct Function;
 struct MatchedSchema;
 

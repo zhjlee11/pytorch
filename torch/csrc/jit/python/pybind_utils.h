@@ -24,6 +24,7 @@
 #include <torch/csrc/utils/auto_gil.h>
 #include <torch/csrc/utils/pybind.h>
 #include <torch/csrc/utils/six.h>
+#include "ATen/core/overloaded_function.h"
 #ifdef USE_DISTRIBUTED
 #include <torch/csrc/distributed/rpc/py_rref.h>
 #include <torch/csrc/distributed/rpc/rref_impl.h>
@@ -789,6 +790,36 @@ struct VISIBILITY_HIDDEN tuple_slice {
   int64_t e;
 };
 
+inline bool canCreateStackFromSchema(
+    const FunctionSchema& schema,
+    const tuple_slice& args,
+    const py::kwargs& kwargs,
+    const c10::optional<IValue>& self) {
+
+  size_t all_arguments = (self ? 1 : 0) + args.size() + kwargs.size();
+  size_t arguments_without_kwargs = (self ? 1 : 0) + args.size();
+  if (all_arguments > schema.arguments().size()) {
+    return false;
+  }
+
+  size_t consumed_kwargs = 0;
+  for (size_t i = arguments_without_kwargs; i < schema.arguments().size(); ++i) {
+    const auto& arg = schema.arguments()[i];
+    if (kwargs.contains(arg.name().c_str())) {
+      consumed_kwargs += 1;
+    } else if (arg.default_value()) {
+      continue;
+    } else {
+      return false;
+    }
+  }
+
+  if (consumed_kwargs != kwargs.size()) {
+    return false;
+  }
+  return true;
+};
+
 inline Stack createStackForSchema(
     const FunctionSchema& schema,
     const tuple_slice& args,
@@ -898,6 +929,7 @@ inline py::object runAndInsertCall(
     // we're tracing.
     const std::function<Value*(Graph&, const MatchedSchema& match)>&
         callInserter) {
+
   auto stack =
       createStackForSchema(callee.getSchema(), args, kwargs, std::move(self));
   const auto& tracing_state = tracer::getTracingState();
