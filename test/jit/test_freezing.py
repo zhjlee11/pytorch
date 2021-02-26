@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
-from torch.testing._internal.jit_utils import JitTestCase
+import unittest
+from torch.testing._internal.jit_utils import JitTestCase, RUN_CUDA
 
 from torch.testing import FileCheck
 from torch.testing._internal.common_quantized import override_quantized_engine
@@ -1556,6 +1557,36 @@ class TestFrozenOptimizations(JitTestCase):
         FileCheck().check_not("aten::feature_dropout").run(frozen_mod.graph)
 
         input = torch.randn(2, 2)
+        output_s = mod.forward(input)
+        output_f = frozen_mod.forward(input)
+        self.assertEqual(output_s, output_f)
+
+    @unittest.skipIf(not RUN_CUDA, "requires CUDA")
+    def test_freeze_conv_relu_fusion(self):
+        class Net(nn.Module):
+            def __init__(self, num_classes: int = 1000) -> None:
+                super(Net, self).__init__()
+                self.conv = nn.Sequential(
+                    nn.Conv2d(1, 4, kernel_size=3, stride=1, padding=1),
+                    nn.ReLU(inplace=True),
+                    nn.MaxPool2d(kernel_size=2, stride=2),
+                )
+
+            def forward(self, x: torch.Tensor) -> torch.Tensor:
+                x = self.conv(x)
+                return x
+
+        device = torch.device("cuda:0")
+        mod = torch.jit.script(Net().eval())
+        mod.to(device)
+        # inspect frozen mod
+        torch._C._jit_pass_inline(mod.graph)
+        FileCheck().check("aten::relu").run(mod.graph)
+        frozen_mod = torch.jit.freeze(mod, optimize_numerics=False)
+        torch._C._jit_pass_fuse_frozen_conv_relu(frozen_mod.graph)
+        FileCheck().check("aten::cudnn_convolution_bias_relu").run(frozen_mod.graph)
+
+        input = torch.randn(10, 1, 8, 8, device=device)
         output_s = mod.forward(input)
         output_f = frozen_mod.forward(input)
         self.assertEqual(output_s, output_f)
